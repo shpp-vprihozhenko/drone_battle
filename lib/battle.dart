@@ -5,13 +5,8 @@ import 'package:just_audio/just_audio.dart';
 import 'globals.dart';
 
 /*
-top 10 - backend
- read top 10 monthly on start
- if user result >
- + what is your name?
- + keep!
- + table with results 'TOP RESULTS'
-left block on longPress
+эбаут
+завис 40
 
 common speed up depends on efficient
 sub size depend on height
@@ -73,8 +68,8 @@ class _BattleState extends State<Battle> {
   bool isMoveRight = false, isMoveLeft = false;
   double bombReloadTime = 4, bombReloadTimer = 0;
   int refreshPeriod = 30;
-  double blueHeight = 0;
-  double yellowHeight = 0;
+  double blueHeight = 0, yellowHeight = 0;
+  double speedUpRate = 1;
   int curMaxSubs = 1;
 
   var rng = Random();
@@ -128,12 +123,11 @@ class _BattleState extends State<Battle> {
     await bombBoomPlayer.setLoopMode(LoopMode.off);
 
     await warShipBoomPlayer.setVolume(1);
-    await warShipBoomPlayer.setAsset('assets/warBoom.mp3');
+    await warShipBoomPlayer.setAsset('assets/droneBoom.mp3');
     await warShipBoomPlayer.setLoopMode(LoopMode.off);
-    warShipBoomPlayer.seek(const Duration(seconds: 0));
   }
 
-  _refresh(){
+  _refresh() async {
     if (bombReloadTimer>0) {
       bombReloadTimer+=refreshPeriod/1000;
       if (bombReloadTimer >= bombReloadTime) {
@@ -142,7 +136,7 @@ class _BattleState extends State<Battle> {
     }
     for (int idx=0; idx<bombs.length; idx++) {
       Bomb bomb = bombs[idx];
-      bomb.y += bomb.vy;
+      bomb.y += bomb.vy*speedUpRate;
       if (bomb.y > fieldSize.height-20) {
         bombs.removeAt(idx);
       } else if (bomb.y < 0) {
@@ -156,6 +150,7 @@ class _BattleState extends State<Battle> {
         sub.y += sub.vy;
         if (sub.y >= fieldSize.height-20 || sub.boomTimer>1300) {
           subs.removeAt(idx);
+          _createSub();
         }
       } else {
         sub.x += sub.vx;
@@ -201,15 +196,21 @@ class _BattleState extends State<Battle> {
         }
       }
     }
-    _checkForBooms();
-    setState((){});
+    await _checkForBooms();
+    if (subs.length < curMaxSubs) {
+      _createSub();
+      print('after _createSub');
+    }
+    if (mounted){
+      setState((){});
+    }
     Future.delayed(Duration(milliseconds: refreshPeriod), _refresh);
   }
 
-  _checkForBooms() {
-    subs.forEach((sub) async {
+  _checkForBooms() async {
+    for (var sub in subs) {
       if (sub.isDamaged) {
-        return;
+        continue;
       }
       for (int idx=0; idx < bombs.length; idx++) {
         Bomb bomb = bombs[idx];
@@ -225,51 +226,47 @@ class _BattleState extends State<Battle> {
           dy = -dy;
         }
         if (dx < sub.width*0.6) {
-          //print('dx ${dx.toStringAsFixed(0)} / ${sub.width/2} dy ${dy.toStringAsFixed(0)} ws ${sub.height/2} by ${bomb.y}+bh ${bomb.height} - sy ${sub.y}');
           double dy2 = bomb.y-sub.y;
           if (dy2<0) {
             dy2 = -dy2;
           }
           if (dy <= sub.height*0.6 || dy2<sub.height*0.6) {
-            //print('boom dy $dy / ${sub.height}');
             sub.isDamaged = true;
             sub.boomTimer = 0.001;
             deadCounter ++;
             bombs.removeAt(idx);
-            bombBoomPlayer.seek(Duration.zero);
+            await bombBoomPlayer.seek(Duration.zero);
             bombBoomPlayer.play();
-            sub.isDamaged = true;
             if (deadCounter % 8 == 0) {
               curMaxSubs++;
             }
           }
-        } else {
-          if (dy <= sub.height*0.5) {
-            double dx=sub.x+sub.width/2-(bomb.x+bomb.width/2);
-            //print('sx ${sub.x.toStringAsFixed(0)} sw ${sub.width/2} bx ${bomb.x} bw ${bomb.width/2} dx ${dx.toStringAsFixed(0)} / ${sub.width/2} dy ${dy.toStringAsFixed(1)} ws ${sub.height/2} by ${bomb.y}+bh ${bomb.height} - sy ${sub.y.toStringAsFixed(1)}');
-          }
         }
       }
-    });
+    }
     for (var bomb in bombs) {
       if (bomb.vy > 0) {
-        return;
+        continue;
       }
       double dx = (warShip.x+warShip.width/3) - (bomb.x + bomb.width/2);
       double dy = bomb.y - (warShip.y+warShip.height/2);
       double distance = sqrt(dx*dx+dy*dy);
       if (distance < 40) {
         //print('boom! $distance'); Ugly boy
-        warShip.isDamaged = true;
-        warShip.warShipBoomTimer = 0.001;
-        warShipBoomPlayer.play();
+        if (!warShip.isDamaged){
+          warShip.isDamaged = true;
+          warShip.warShipBoomTimer = 0.001;
+          await warShipBoomPlayer.seek(Duration.zero);
+          warShipBoomPlayer.play();
+        }
       }
     }
   }
 
   List <Widget> subsW() {
     List <Widget> l = [];
-    subs.forEach((sub) {
+    for (int idx=0; idx<subs.length; idx++){
+      Sub sub = subs[idx];
       Widget _img;
       if (sub.isDamaged) {
         double mult = sub.boomTimer/1000;
@@ -284,7 +281,7 @@ class _BattleState extends State<Battle> {
           mult = 0.3;
         }
         _img = Container(
-          width: sub.width, height: sub.height,
+            width: sub.width, height: sub.height,
             child: Center(child: Image.asset('assets/boom.png', width: sub.width*mult, height: sub.height*mult,))
         );
       } else {
@@ -298,10 +295,10 @@ class _BattleState extends State<Battle> {
         }
       }
       l.add(Positioned(
-        left: sub.x, top: sub.y,
-        child: _img)
+          left: sub.x, top: sub.y,
+          child: _img)
       );
-    });
+    }
     return l;
   }
 
@@ -332,9 +329,16 @@ class _BattleState extends State<Battle> {
   List <Widget> controls() {
     List <Widget> l = [];
     l.add(Positioned(
-      top: fieldSize.height/3, left: 0,
+      top: fieldSize.height/2-70, left: 0,
       child: GestureDetector(
+        onPanEnd: (det){
+          isMoveLeft = false;
+          isMoveRight = false;
+        },
         onTapDown: (det){
+          if (isMoveRight) {
+            isMoveRight = false;
+          }
           isMoveLeft = true;
         },
         onTapUp: (det){
@@ -348,9 +352,16 @@ class _BattleState extends State<Battle> {
       ),
     ));
     l.add(Positioned(
-      top: fieldSize.height/3, right: 0,
+      top: fieldSize.height/2-70, right: 0,
       child: GestureDetector(
+        onPanEnd: (det){
+          isMoveLeft = false;
+          isMoveRight = false;
+        },
         onTapDown: (det){
+          if (isMoveLeft) {
+            isMoveLeft = false;
+          }
           isMoveRight = true;
         },
         onTapUp: (det){
@@ -364,7 +375,7 @@ class _BattleState extends State<Battle> {
       ),
     ));
     l.add(Positioned(
-      top: fieldSize.height/3+140, right: 0,
+      top: fieldSize.height/2-70+140, right: 0,
       child: GestureDetector(
         onTap: _dropBomb,
         child: ClipOval(
@@ -393,7 +404,7 @@ class _BattleState extends State<Battle> {
       if (dy<0) {
         dy = -dy;
       }
-      if (dy < sub.height*2) {
+      if (dy < sub.height) {
         return true;
       }
     }
@@ -401,8 +412,10 @@ class _BattleState extends State<Battle> {
   }
 
   _createSub() async {
+    print('create sub');
     Sub sub = Sub();
     int tankIdx = rng.nextInt(4);
+    print('tankIdx $tankIdx');
     if (tankIdx == 0) {
       sub.name = 'tank_bmp';
       sub.vx *= 1.6;
@@ -416,12 +429,15 @@ class _BattleState extends State<Battle> {
       sub.name = 'tank_t34';
       sub.vx *= 1.2;
     }
-    do {
+    for (int i=0; i<100; i++) {
       sub.y = rng.nextDouble()*(yellowHeight-30)+blueHeight;
-    } while (_isSubAtSuchY(sub.y));
+      if (!_isSubAtSuchY(sub.y)) {
+        break;
+      }
+    }
     double speedK = (sub.y-blueHeight)/yellowHeight;
     print('source speed ${sub.vx} speedK $speedK sub.y ${sub.y.toStringAsFixed(2)} bH $blueHeight yH $yellowHeight');
-    sub.vx = sub.vx*(1 - 1/3*speedK);
+    sub.vx = sub.vx*(1 - 1/3*speedK)*speedUpRate;
     print('correct speed to ${sub.vx.toStringAsFixed(2)}');
     if (rng.nextBool()) {
       sub.x = -sub.width;
@@ -435,6 +451,8 @@ class _BattleState extends State<Battle> {
       }
     }
     subs.add(sub);
+    speedUpRate+=0.01;
+    print('speedUpRate $speedUpRate');
   }
 
   Widget droneBoomW(){
@@ -456,9 +474,6 @@ class _BattleState extends State<Battle> {
     }
     blueHeight = fieldSize.height/2;
     yellowHeight = fieldSize.height-blueHeight;
-    if (subs.length < curMaxSubs) {
-      _createSub();
-    }
     return Material(
       child: SizedBox(
         width: fieldSize.width, height: fieldSize.height,

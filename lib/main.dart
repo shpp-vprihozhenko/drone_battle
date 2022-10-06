@@ -71,7 +71,11 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       SizedBox(height: 20,),
                       ElevatedButton(
-                          onPressed: (){
+                          onPressed: () async {
+                            if (tecName.text.trim() == '') {
+                              await showAlertPage(context, 'Enter your name please');
+                              return;
+                            }
                             Navigator.pop(context, tecName.text);
                           },
                           child: Text('OK')
@@ -100,7 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
               width: 300, height: 300,
               child: Column(
                 children: [
-                  Text('Best heroes'),
+                  Text('Best heroes of the month'),
                   SizedBox(height: 18,),
                   ListView.builder(
                     shrinkWrap: true,
@@ -188,11 +192,14 @@ class _MyHomePageState extends State<MyHomePage> {
               child: GestureDetector(
                 onTap: () async {
                   liveCounter = 0; deadCounter = 0;
-                  await Navigator.push(context, MaterialPageRoute(builder: (context) => Battle()));
+                  await Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => Battle())
+                  );
                   if (url.length == 0 || deadCounter > url.last.score) {
                     var name = await _askHeroName();
                     if (name == null) {
                       print('no name');
+                      setState((){});
                       return;
                     }
                     print('ok name $name');
@@ -232,7 +239,7 @@ class _MyHomePageState extends State<MyHomePage> {
             top: blueHeight+100,
             child: GestureDetector(
               onTap: (){
-                launchUrl(Uri.parse('https://u24.gov.ua/dronation/en'));
+                launchUrl(Uri.parse('https://u24.gov.ua/dronation'));
               },
               child: SizedBox(
                 width: fieldSize.width,
