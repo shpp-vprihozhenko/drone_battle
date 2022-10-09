@@ -6,7 +6,6 @@ import 'globals.dart';
 
 /*
 эбаут
-завис 40
 
 common speed up depends on efficient
 sub size depend on height
@@ -519,9 +518,9 @@ class _BattleState extends State<Battle> {
             )
                 :
             const SizedBox(),
-            ...controls(),
             ...subsW(),
             ...bombsW(),
+            ...controls(),
           ],
         ),
       ),
