@@ -6,7 +6,8 @@ import 'package:flutter/services.dart';
 import 'globals.dart';
 import 'painter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:just_audio/just_audio.dart';
+//import 'package:just_audio/just_audio.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 /*
 
@@ -72,29 +73,35 @@ class _BattleFieldState extends State<BattleField> {
   }
 
   _startDroneSound() async {
+    printD('_startDroneSound');
+    await dronePlayer.setSource(AssetSource('sounds/drone.wav'));
+    printD('_startDroneSound 1');
     await dronePlayer.setVolume(0.15);
-    await dronePlayer.setAsset('assets/sounds/drone.mp3');
-    await dronePlayer.setLoopMode(LoopMode.all);
-    dronePlayer.play();
+
+    //await dronePlayer.setLoopMode(LoopMode.all);
+    await dronePlayer.setReleaseMode(ReleaseMode.loop);
+    dronePlayer.seek(Duration.zero);
+    printD('_startDroneSound 2');
+    dronePlayer.play(AssetSource('sounds/drone.wav'));
+    printD('_startDroneSound 3');
   }
 
   _prepareOtherSounds() async {
     await tankPlayer.setVolume(0.6);
-    await tankPlayer.setAsset('assets/sounds/tank.mp3');
-    await tankPlayer.setLoopMode(LoopMode.all);
-    //tankPlayer.play();
+    await tankPlayer.setSource(AssetSource('sounds/tank.mp3'));
+    await tankPlayer.setReleaseMode(ReleaseMode.loop);
 
     await bombStartPlayer.setVolume(1);
-    await bombStartPlayer.setAsset('assets/sounds/bombStart.mp3');
-    await bombStartPlayer.setLoopMode(LoopMode.off);
+    await bombStartPlayer.setSource(AssetSource('sounds/bombStart.mp3'));
+    await bombStartPlayer.setReleaseMode(ReleaseMode.release);
 
     await bombBoomPlayer.setVolume(1);
-    await bombBoomPlayer.setAsset('assets/sounds/bombBoom.mp3');
-    await bombBoomPlayer.setLoopMode(LoopMode.off);
+    await bombBoomPlayer.setSource(AssetSource('sounds/bombBoom.mp3'));
+    await bombBoomPlayer.setReleaseMode(ReleaseMode.release);
 
     await warShipBoomPlayer.setVolume(1);
-    await warShipBoomPlayer.setAsset('assets/sounds/droneBoom.mp3');
-    await warShipBoomPlayer.setLoopMode(LoopMode.off);
+    await warShipBoomPlayer.setSource(AssetSource('sounds/droneBoom.mp3'));
+    await warShipBoomPlayer.setReleaseMode(ReleaseMode.release);
   }
 
   _countKilledTargets(TankModel model){
@@ -220,7 +227,7 @@ class _BattleFieldState extends State<BattleField> {
         if (bomb.height > 0) {
           printD("\nBOOM\n");
           bombBoomPlayer.seek(Duration.zero);
-          bombBoomPlayer.play();
+          bombBoomPlayer.play(AssetSource('sounds/bombBoom.mp3'));
         }
         bomb.height = 0;
         bomb.boomTimer += glRefreshPeriodMs/1000;
@@ -428,7 +435,7 @@ class _BattleFieldState extends State<BattleField> {
     context.read<TankCubit>().registryDropBomb();
     setState(() {});
     bombStartPlayer.seek(Duration.zero);
-    bombStartPlayer.play();
+    bombStartPlayer.play(AssetSource('sounds/bombStart.mp3'));
   }
 
   void _onPanUpdate(DragUpdateDetails details) {

@@ -1,6 +1,7 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'about.dart';
 import 'missionDescription.dart';
-import 'teach2Dmode.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'drone_battle_page.dart';
@@ -123,36 +124,14 @@ class _DroneStartPageState extends State<DroneStartPage> {
     return const SizedBox();
   }
 
-  _run2dTraining() async {
-    await Navigator.push(context,
-        MaterialPageRoute(builder: (context) => const Teach2D(title: '2D mode'))
-    );
+  _testAudioAv() async {
+    printD('start _testAudioAv');
+    final data = await rootBundle.load('assets/sounds/drone.mp3');
+    print('drone.wav bytes: ${data.lengthInBytes}');
   }
 
   List <Widget> missionsWL(){
     List <Widget> mwl = [];
-    if (is2dTraining) {
-      mwl.add(
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 24,),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple
-                ),
-                onPressed: _run2dTraining,
-                child: const Text('2D training', textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 15,),
-            ],
-          )
-      );
-      mwl.add(const Divider(thickness: 2,));
-    }
     mwl.add(
       const Padding(
         padding: EdgeInsets.all(15.0),
@@ -211,6 +190,10 @@ class _DroneStartPageState extends State<DroneStartPage> {
           const Spacer(),
           IconButton(
               onPressed: (){
+                if (kDebugMode) {
+                  _testAudioAv();
+                  return;
+                }
                 Navigator.push(context,
                     MaterialPageRoute(builder: (context) => const About())
                 );
