@@ -5,8 +5,6 @@ import 'package:just_audio/just_audio.dart';
 import 'globals.dart';
 
 /*
-эбаут
-
 common speed up depends on efficient
 sub size depend on height
 left - right corners blocks
@@ -108,22 +106,26 @@ class _BattleState extends State<Battle> {
   }
 
   _prepareOtherSounds() async {
-    await tankPlayer.setVolume(0.6);
+    await tankPlayer.setVolume(0.2);
     await tankPlayer.setAsset('assets/tank.mp3');
     await tankPlayer.setLoopMode(LoopMode.all);
     tankPlayer.play();
 
-    await bombStartPlayer.setVolume(1);
-    await bombStartPlayer.setAsset('assets/bombStart.mp3');
-    await bombStartPlayer.setLoopMode(LoopMode.off);
-
+    printD('0');
     await bombBoomPlayer.setVolume(1);
     await bombBoomPlayer.setAsset('assets/bombBoom.mp3');
     await bombBoomPlayer.setLoopMode(LoopMode.off);
-
+    printD('2');
     await warShipBoomPlayer.setVolume(1);
     await warShipBoomPlayer.setAsset('assets/droneBoom.mp3');
     await warShipBoomPlayer.setLoopMode(LoopMode.off);
+    printD('3');
+    await bombStartPlayer.setVolume(1);
+    printD('3.1');
+    await bombStartPlayer.setAsset('assets/sounds/bombStart.mp3');
+    printD('3.2');
+    await bombStartPlayer.setLoopMode(LoopMode.off);
+    printD('1.`');
   }
 
   _refresh() async {
@@ -198,7 +200,6 @@ class _BattleState extends State<Battle> {
     await _checkForBooms();
     if (subs.length < curMaxSubs) {
       _createSub();
-      print('after _createSub');
     }
     if (mounted){
       setState((){});

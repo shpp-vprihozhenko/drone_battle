@@ -1,274 +1,270 @@
+import 'about.dart';
+import 'missionDescription.dart';
+import 'teach2Dmode.dart';
 import 'package:flutter/material.dart';
-import 'package:seabattle/globals.dart';
-import 'battle.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'drone_battle_page.dart';
+import 'globals.dart';
+import 'package:avatar_glow/avatar_glow.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
+  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Dronomania',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Drone Battle'),
-      debugShowCheckedModeBanner: false,
+      home: const DroneStartPage()
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-  final String title;
+class DroneStartPage extends StatefulWidget {
+  const DroneStartPage({Key? key}) : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<DroneStartPage> createState() => _DroneStartPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _DroneStartPageState extends State<DroneStartPage> {
+  bool is2dTraining = false;
 
   @override
   void initState() {
     super.initState();
-    getBestResults(context).then((value){
-      print('got val $value');
+    getBestResults(context, name: 'prykhozhenko').then((value){
+      printD('got getBestResults $value');
       if (value == null) {
         return;
       }
-      value.forEach((vue){
-        UserResult ur = UserResult();
-        ur.name = vue["name"];
-        ur.score = vue["score"];
-        url.add(ur);
-      });
-      setState((){});
+      if (value == 1) {
+        is2dTraining = true;
+        setState((){});
+      }
     });
+    _readMissionResults();
   }
 
-  _askHeroName() async {
-    TextEditingController tecName = TextEditingController();
-    var result = await showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            content: Container(
-              width: 300, height: 300,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('You are cool!'),
-                      SizedBox(height: 14,),
-                      Text('Enter your name, hero:'),
-                      SizedBox(height: 10,),
-                      TextField(
-                        controller: tecName,
-                      ),
-                      SizedBox(height: 20,),
-                      ElevatedButton(
-                          onPressed: () async {
-                            if (tecName.text.trim() == '') {
-                              await showAlertPage(context, 'Enter your name please');
-                              return;
-                            }
-                            Navigator.pop(context, tecName.text);
-                          },
-                          child: Text('OK')
-                      ),
-                    ],
-                  ),
-                )
-            ),
-          );
-      }
+  _readMissionResults() async {
+    await glRestoreMRL();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  _reset(){
+    glDroneLife = 100;
+  }
+
+  _runMission(String name, Mission mission, int lineNumber) async {
+    _reset();
+    var result = await Navigator.push(context,
+        MaterialPageRoute(builder: (context) => MissionDescription(mission: mission))
     );
-    //tecName.dispose();
     if (result == null) {
       return;
     }
-    print('got name $result');
-    return result;
+    if (!mounted) {
+      return;
+    }
+    result = await Navigator.push(context,
+        MaterialPageRoute(builder: (context) => DroneBattlePage(mission: mission))
+    );
+    if (result == null) {
+      return;
+    }
+    if (result != 'win') {
+      if (mounted) {
+        await showResultPage(context, 'MISSION FAILED', result, false);
+      }
+    } else {
+      _saveMissionWin(mission, lineNumber);
+      if (mounted) {
+        await showResultPage(context, 'YOU WIN!!!', '', true);
+      }
+    }
   }
 
-  _showBest10() async {
-    await showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            content: Container(
-              width: 300, height: 300,
-              child: Column(
-                children: [
-                  Text('Best heroes of the month'),
-                  SizedBox(height: 18,),
-                  ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: url.length,
-                    itemBuilder: (context, idx) {
-                      UserResult ur = url[idx];
-                      return Padding(
-                        padding: const EdgeInsets.all(4.0),
-                        child: Row(
-                          children: [
-                            Expanded(child: Text(ur.name)),
-                            SizedBox(width: 12,),
-                            Text(ur.score.toString())
-                          ],
-                        ),
-                      );
-                    }
-                  ),
-                ],
-              )
-            ),
-          );
-        }
+  _saveMissionWin(Mission mission, int lineNumber){
+    int idx = missionResultList.indexWhere(
+            (element) => element.missionName == mission.missionName);
+    MissionResult mr = MissionResult();
+    if (idx == -1) {
+      mr.missionName = mission.missionName;
+      mr.missionIdx = lineNumber;
+      mr.bestTime = glPassedFor;
+      missionResultList.add(mr);
+      printD('mission result saved');
+    } else {
+      mr = missionResultList[idx];
+      if (mr.bestTime > glPassedFor) {
+        mr.bestTime = glPassedFor;
+        printD('best time updated');
+      }
+    }
+    glSaveMRL();
+    setState(() {});
+  }
+
+  Widget medalsW(int missionNumber){
+    int idx = missionResultList.indexWhere((element) => element.missionIdx == missionNumber);
+    if (idx > -1) {
+      MissionResult mr = missionResultList[idx];
+      return Text('best time ${mr.bestTime.toStringAsFixed(0)} sec');
+    }
+    return const SizedBox();
+  }
+
+  _run2dTraining() async {
+    await Navigator.push(context,
+        MaterialPageRoute(builder: (context) => const Teach2D(title: '2D mode'))
     );
+  }
+
+  List <Widget> missionsWL(){
+    List <Widget> mwl = [];
+    if (is2dTraining) {
+      mwl.add(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 24,),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple
+                ),
+                onPressed: _run2dTraining,
+                child: const Text('2D training', textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 15,),
+            ],
+          )
+      );
+      mwl.add(const Divider(thickness: 2,));
+    }
+    mwl.add(
+      const Padding(
+        padding: EdgeInsets.all(15.0),
+        child: Text('Mission list', textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+      )
+    );
+    for (int idx=0; idx< missions.length; idx++) {
+      Mission mission = missions[idx];
+      mission.missionNumber = idx;
+      mwl.add(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent.withOpacity(0.2)
+                ),
+                child: Text('${idx+1}. ${mission.missionName}', textScaleFactor: 1.3,
+                  style: TextStyle(
+                    color: Colors.white
+                  ),
+                ),
+                onPressed: (){
+                  _runMission('Mission $idx', mission, idx);
+                },
+              ),
+              const SizedBox(width: 6,),
+              medalsW(idx),
+            ],
+          )
+      );
+      mwl.add(const SizedBox(height: 20,));
+    }
+    mwl.add(const SizedBox(height: 80,));
+    return mwl;
+  }
+
+  _u24() async {
+    await launchUrl(Uri.parse('https://u24.gov.ua/dronation'));
+    printD('+');
+    glExtraSpeedBombsQuantity = 5;
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    Size fieldSize = MediaQuery.of(context).size;
-    double blueHeight = fieldSize.height/2-55;
-    double yellowHeight = fieldSize.height-blueHeight;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Stack(
+      appBar: AppBar(title: Row(
         children: [
-          Positioned(
-            top: 0, left: 0,
-            child: Container(
-              width: fieldSize.width,
-              height: blueHeight,
-              color: Colors.lightBlueAccent[100],
-            ),
-          ),
-          Positioned(
-            top: blueHeight+1, left: 0,
-            child: Container(
-              width: fieldSize.width,
-              height: yellowHeight,
-              color: Colors.yellow[300],
-            ),
-          ),
-          liveCounter+deadCounter == 0?
-            const SizedBox()
-          :
-            Positioned(
-            top: blueHeight/3, left: 0,
-            child: SizedBox(
-              width: fieldSize.width,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text ('killed enemies: ', style: TextStyle(fontSize: 30),),
-                      Text(deadCounter.toString(),
-                        style: const TextStyle(fontSize: 36, color: Colors.red, fontWeight: FontWeight.bold),),
-                    ],
-                  ),
-                  SizedBox(height: 15,),
-                  GestureDetector(
-                    onTap: _showBest10,
-                    child: Image.asset('assets/top10.png', width: 90, height: 90,)
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(
-            width: fieldSize.width, height: fieldSize.height,
-            child: Center(
-              child: GestureDetector(
-                onTap: () async {
-                  liveCounter = 0; deadCounter = 0;
-                  await Navigator.push(context,
-                      MaterialPageRoute(builder: (context) => Battle())
-                  );
-                  if (url.length == 0 || deadCounter > url.last.score) {
-                    var name = await _askHeroName();
-                    if (name == null) {
-                      print('no name');
-                      setState((){});
-                      return;
-                    }
-                    print('ok name $name');
-                    UserResult ur = UserResult();
-                    ur.name = name;
-                    ur.score = deadCounter;
-                    url.add(ur);
-                    addBestResult(context, name, deadCounter);
-                  }
-                  setState((){});
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    ClipOval(
-                      child: Container(
-                        color: Colors.white,
-                        width: 140, height: 140,
-                          child: Center(
-                            child: Image.asset('assets/drone.png')
-                            //Text('GO', style: TextStyle(fontSize: 55),)
-                          )
-                      ),
-                    ),
-                    const Text('START', style: TextStyle(
-                      fontSize: 40, fontWeight: FontWeight.bold
-                    ),)
-                  ],
-                ),
-              ),
-            ),
-          ),
-          liveCounter+deadCounter == 0?
-            const SizedBox()
-          :
-            Positioned(
-            top: blueHeight+100,
-            child: GestureDetector(
-              onTap: (){
-                launchUrl(Uri.parse('https://u24.gov.ua/dronation'));
+          Image.asset('assets/ukraine.png', width: 40,),
+          const SizedBox(width: 12,),
+          const Text('Drone war'),
+          const Spacer(),
+          IconButton(
+              onPressed: (){
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => const About())
+                );
               },
-              child: SizedBox(
-                width: fieldSize.width,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset('assets/u24dronesFond.jpg',
-                          width: fieldSize.width*0.9,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14,),
-                    const Text('do your bit for peace',
-                      style: TextStyle(fontSize: 32,
-                          color: Colors.blueAccent,
-                          fontWeight: FontWeight.bold
-                      ),
-                    )
-                  ],
+              icon: const Icon(Icons.help, size: 24,),
+          ),
+        ]),
+      ),
+      body: Container(
+        width: double.infinity, height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("assets/bg2.jpg"),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Center(
+          child: ListView(
+            children: [
+              ...missionsWL(),
+            ]
+          ),
+        ),
+      ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AvatarGlow(
+            endRadius: 90,
+            child: SizedBox(
+              width: 120, height: 120,
+              child: FloatingActionButton(
+                backgroundColor: Colors.blue.withOpacity(0.1),
+                onPressed: _u24,
+                child: ClipOval(
+                  child: Image.asset('assets/u24.jpg', width: 100, height: 100,),
                 ),
               ),
             ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/bomb2.png', height: 35,),
+              const SizedBox(width: 10,),
+              Text('$glExtraSpeedBombsQuantity', style: const TextStyle(
+                  fontSize: 24,
+                  color: Colors.yellow
+              ),),
+            ],
           ),
         ],
       ),
     );
   }
 }
+
